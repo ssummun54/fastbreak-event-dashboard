@@ -81,6 +81,12 @@ export default function LoginPage() {
       setGoogleLoading(false)
       return
     }
+    const appOrigin = window.location.origin
+    if (supabaseUrl.startsWith(appOrigin)) {
+      toast.error('Auth config issue: NEXT_PUBLIC_SUPABASE_URL points to this app URL.')
+      setGoogleLoading(false)
+      return
+    }
     const authorizeUrl = new URL('/auth/v1/authorize', supabaseUrl)
     authorizeUrl.searchParams.set('provider', 'google')
     authorizeUrl.searchParams.set('redirect_to', redirectTo)
