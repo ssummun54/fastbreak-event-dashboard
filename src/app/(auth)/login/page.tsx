@@ -17,9 +17,9 @@ import { Separator } from '@/components/ui/separator'
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  organization: z.string().default(''),
+  firstName: z.string(),
+  lastName: z.string(),
+  organization: z.string(),
 })
 
 const signupSchema = z.object({
@@ -32,10 +32,10 @@ const signupSchema = z.object({
     .regex(/[^A-Za-z0-9]/, 'At least one special character'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  organization: z.string().default(''),
+  organization: z.string(),
 })
 
-type AuthFormValues = z.infer<typeof signupSchema>
+type AuthFormValues = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
