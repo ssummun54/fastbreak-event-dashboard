@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Separator } from '@/components/ui/separator'
-import { createClient } from '@/lib/supabase/client'
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -74,24 +73,18 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     setGoogleLoading(true)
-    const supabase = createClient()
     const redirectTo = new URL('/auth/callback', window.location.origin).toString()
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-      },
-    })
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
-    if (error) {
-      toast.error(error.message)
+    if (!supabaseUrl) {
+      toast.error('Supabase URL is missing.')
       setGoogleLoading(false)
       return
     }
-
-    if (data?.url) {
-      window.location.assign(data.url)
-    }
+    const authorizeUrl = new URL('/auth/v1/authorize', supabaseUrl)
+    authorizeUrl.searchParams.set('provider', 'google')
+    authorizeUrl.searchParams.set('redirect_to', redirectTo)
+    window.location.assign(authorizeUrl.toString())
   }
 
   function switchMode() {
