@@ -1,3 +1,5 @@
+import { toCanonicalSport } from '@/lib/text/sport'
+
 type VenueInput = {
   name: string
   street: string
@@ -48,7 +50,7 @@ export function normalizeEventInput<T extends EventInput>(input: T): T {
   return {
     ...input,
     name: toTitleCase(input.name),
-    sport: normalizeWhitespace(input.sport),
+    sport: toCanonicalSport(input.sport),
     description: normalizeDescription(input.description ?? ''),
     venues: input.venues.map((venue) => ({
       ...venue,

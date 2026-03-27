@@ -7,6 +7,7 @@ import { eventSchema, updateEventSchema } from '@/lib/validations/event.schema'
 import { ActionResult, Event, SportCount } from '@/types'
 import { formatVenueAddress } from '@/lib/address/venue-address'
 import { normalizeEventInput } from '@/lib/text/normalize'
+import { toCanonicalSport } from '@/lib/text/sport'
 import { z } from 'zod'
 
 export async function getEvents(query?: string, sport?: string): Promise<Event[]> {
@@ -32,7 +33,10 @@ export async function getEvents(query?: string, sport?: string): Promise<Event[]
     return []
   }
 
-  return (data as Event[]) ?? []
+  return ((data as Event[]) ?? []).map((event) => ({
+    ...event,
+    sport: toCanonicalSport(event.sport),
+  }))
 }
 
 export async function getEvent(id: string): Promise<Event | null> {
@@ -45,7 +49,11 @@ export async function getEvent(id: string): Promise<Event | null> {
     .single()
 
   if (error) return null
-  return data as Event
+  const event = data as Event
+  return {
+    ...event,
+    sport: toCanonicalSport(event.sport),
+  }
 }
 
 export async function getSportCounts(query?: string): Promise<SportCount[]> {
@@ -69,7 +77,7 @@ export async function getSportCounts(query?: string): Promise<SportCount[]> {
   const counts = new Map<string, number>()
 
   for (const row of data ?? []) {
-    const sport = row.sport
+    const sport = toCanonicalSport(row.sport ?? '')
     if (!sport) continue
     counts.set(sport, (counts.get(sport) ?? 0) + 1)
   }

@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteOrigin } from '@/lib/site-url'
 import { ActionResult } from '@/types'
 
 export async function loginWithEmail(email: string, password: string): Promise<ActionResult<void>> {
@@ -53,11 +54,12 @@ export async function signUpWithEmail(data: SignUpData): Promise<ActionResult<vo
 
 export async function loginWithGoogle(): Promise<ActionResult<{ url: string }>> {
   const supabase = await createClient()
+  const siteOrigin = await getSiteOrigin()
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback`,
+      redirectTo: `${siteOrigin}/auth/callback`,
     },
   })
 

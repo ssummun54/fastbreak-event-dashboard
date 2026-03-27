@@ -7,12 +7,13 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
-import { loginWithEmail, signUpWithEmail, loginWithGoogle } from '@/actions/auth.actions'
+import { loginWithEmail, signUpWithEmail } from '@/actions/auth.actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Separator } from '@/components/ui/separator'
+import { createClient } from '@/lib/supabase/client'
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -73,12 +74,17 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     setGoogleLoading(true)
-    const result = await loginWithGoogle()
-    if (!result.success) {
-      toast.error(result.error)
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      toast.error(error.message)
       setGoogleLoading(false)
-    } else {
-      window.location.href = result.data.url
     }
   }
 
