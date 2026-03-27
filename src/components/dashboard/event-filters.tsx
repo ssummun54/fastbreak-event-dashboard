@@ -52,7 +52,7 @@ export function EventFilters({ sportCounts }: EventFiltersProps) {
       />
       <Select
         value={sport || 'All'}
-        onValueChange={(val) => updateParams('sport', val === 'All' ? '' : val)}
+        onValueChange={(val) => updateParams('sport', !val || val === 'All' ? '' : val)}
       >
         <SelectTrigger
           className="sm:w-48 border-2 border-border/80 text-foreground dark:border-white/25"

@@ -6,11 +6,11 @@ export const venueSchema = z.object({
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   zip: z.string().min(1, 'ZIP is required'),
-  capacity: z.string().default(''),
-  indoor: z.boolean().default(false),
-  contact_name: z.string().default(''),
-  contact_email: z.string().default(''),
-  notes: z.string().default(''),
+  capacity: z.string(),
+  indoor: z.boolean(),
+  contact_name: z.string(),
+  contact_email: z.string(),
+  notes: z.string(),
 }).superRefine((value, ctx) => {
   if (!/^[A-Za-z]{2}$/.test(value.state.trim())) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['state'], message: 'Use 2-letter state (e.g. NY)' })
@@ -34,7 +34,7 @@ export const venueSchema = z.object({
 export const eventSchema = z.object({
   name: z.string().min(1, 'Event name is required'),
   sport: z.string().min(1, 'Sport is required'),
-  description: z.string().default(''),
+  description: z.string(),
   starts_at: z.string().min(1, 'Start date & time is required'),
   ends_at: z.string().min(1, 'End date & time is required'),
   venues: z.array(venueSchema).min(1, 'At least one venue is required'),
