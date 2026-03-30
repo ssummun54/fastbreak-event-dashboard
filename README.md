@@ -1,109 +1,24 @@
-# Fastbreak Event Dashboard
+This repository contains my implementation of the Fastbreak event dashboard take-home challenge. The application allows users to sign in, create sports events, attach venues and manage the events they created through a simple dashboard. Each event stores a sport type, date range, description and one or more venues with address and capacity information. Users can browse events through the dashboard and filter them based on sport type and edit or delete only the events they own.
 
-This is my submission for the coding challenge.
+I started the project by setting up the infrastructure before working on the UI. That meant wiring up Supabase for authentication and database access, adding middleware for route protection and confirming that the Vercel deployment worked early. I then implemented the core pages: login, dashboard, create event and edit event. The event form ended up being the most challenging part of the build because venue fields are nested and the database insert happens in two steps. The event row needs to exist first so the venue rows can reference its ID. 
 
-I built Fastbreak as a practical event dashboard: create events, attach venues, filter fast, and keep permissions locked down so users can only edit their own data.
+One decision I spent time on was the authentication flow. Supabase supports both implicit OAuth and PKCE. The implicit flow is simpler but places tokens in the URL hash and can end up in browser history or logs. PKCE exchanges a temporary code on the server so the tokens never appear in the URL. I chose PKCE and this actually exposed a bug during deployment where Google authentication appeared to freeze. The callback route was configured for PKCE while the client was still defaulting to implicit flow so the exchange never happened. Explicitly setting the flow type on the Supabase client fixed the issue. 
 
-I wanted this write-up to feel like a real build log, not a marketing page, so this is how I actually approached it.
+Updating venues during an event edit required a small tradeoff. The simplest approach is to delete the existing venue rows and insert the new ones. The risk is that venue data will be lost if the insert fails after the delete succeeds. The solution I used was to check the delete operation result before performing the insert and surface an error early if it fails. A more robust approach would be wrapping both operations in a Postgres function and calling it through an RPC endpoint so the database could execute the changes inside a transaction
 
-## What I built
+Authorization is mainly enforced through Supabase Row Level Security policies rather than relying only on application logic. Any authenticated user can read events and venues, but editing operations are restricted to the user who created the event. Venues do not have their own owner column so their write policies check the ownership of the parent event through a subquery. That adds a small amount of overhead on inserts and updates but keeps the ownership logic in one place.
 
-- Event CRUD (create, edit, delete)
-- Event start/end date support (`starts_at`, `ends_at`)
-- Multi-venue support per event
-- Structured venue address fields (`street`, `city`, `state`, `zip`)
-- Search + sport filter with counts
-- Email/password auth + Google OAuth
-- Ownership-aware actions (edit/delete only for event creator)
-- Toasts for create/update/delete feedback
+I also added a few practical database optimizations based on how the dashboard queries data. Indexes exist on the columns that are most commonly filtered or sorted: created_by, sport and starts_at. The starts_at index is descending because the dashboard shows upcoming events first. At the scale of this assignment the difference is small, but it avoids a migration later if the dataset grows.
 
-## How I approached it
+By default the dashboard shows upcoming events only by filtering events where the end date has not passed. Events that have already started but have not finished still appear. There is also a toggle to show past events when needed. 
 
-I tried to keep the data flow boring.
+Using the Supabase client together with Next.js server actions kept the architecture simple. A form submits, a server action runs, the database write happens and the page revalidates. A dedicated backend service with direct Postgres access would allow full transaction support and more complex queries. These decisions only become important once concurrency or scale increases. The schema design and RLS setup used here would still translate well if the project later moved to a separate backend.
 
-Reads and writes happen through Server Components + Server Actions, with Supabase as the backend. On the UI side, I used React Hook Form + Zod so form validation is explicit and predictable.
+My next steps for this project would be adding pagination once the dataset grows, expanding the permission model so multiple users can manage the same event and use Supabase’s realtime subscriptions so new events appear on the dashboard without refreshing the page. 
 
-For auth/authorization, I treated the UI as a convenience layer and RLS as the real protection layer. Hiding controls in the UI helps clarity, but the database policies are what actually stop bad writes.
+An audit log table would also be worth adding. Right now there's no record of who changed what and when. A Postgres trigger similar to the updated_at trigger already in place could write a row to an audit table on every insert, update and delete.
 
-## Main tradeoffs I made
+Beyond the tech side of things, I would expand outside of sports. The data model is flexible enough to support other event types like music festivals. The main change would be replacing the sport field with a generic category system and making venue requirements configurable per event type. Individual matches or concert sets could live as child records under each event. A tournament would have multiple games, a festival would have sets with artists and stage times.
 
-1. Server Actions instead of a separate API layer  
-Pro: less boilerplate, faster iteration.  
-Con: less explicit than REST routes when debugging.
+Because sports are so universal, I would also introduce content in multiple languages. This would increase the product's marketability and accessibility. 
 
-2. Flexible sport strings instead of hard DB enums  
-Pro: easier to iterate during product changes.  
-Con: requires normalization to avoid casing drift (`E-Mls` vs `E-MLS`).
-
-3. Hide unauthorized actions instead of disabling them  
-Pro: cleaner experience, less clutter.  
-Con: users do not see "why" unless we add explicit permission messaging.
-
-## Real issues I hit in deployment (and how I fixed them)
-
-### 1) Google OAuth redirect issue in production
-
-I ran into a bad callback URL that looked like this:
-
-`https://<project>.supabase.co/fastbreak-event-dashboard-dusky.vercel.app?...`
-
-Root cause: one redirect URL was missing `https://`, so Supabase treated it like a path.
-
-Fix:
-- Corrected Supabase auth URL settings
-- Standardized redirect origin handling in code
-- Kept `/auth/callback` as the OAuth exchange route
-
-### 2) Vercel TypeScript failures
-
-I hit a few build blockers:
-- Resolver type mismatch in login/signup form
-- `string | null` values flowing into string-only route params
-
-Fix:
-- Tightened form typings and resolver usage
-- Normalized nullable values before passing them along
-
-### 3) UI library warnings
-
-I saw warnings around:
-- Controlled/uncontrolled inputs
-- Non-native button semantics in button-like components
-
-Fix:
-- Made form fields consistently controlled (`value ?? ''`)
-- Updated button usage to keep native button semantics for accessibility
-
-### 4) Hydration warning noise
-
-There was a hydration mismatch warning tied to attributes modified at runtime. I verified app behavior and narrowed this down to non-core rendering differences, then kept server/client rendering paths consistent where needed.
-
-## What I’d do next if I had more time
-
-1. Add action-level integration tests (especially auth callback + RLS-protected mutations).
-2. Add end-to-end tests for the full event form flow.
-3. Add CI checks for migrations before deploy.
-4. Add better auth error telemetry in production.
-
-## Run locally
-
-```bash
-npm install
-npm run dev
-```
-
-`.env.local` needs:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
-## Stack
-
-- Next.js 16 (App Router)
-- TypeScript
-- Supabase (Postgres, Auth, RLS)
-- Tailwind CSS + shadcn/Base UI
-- React Hook Form + Zod
