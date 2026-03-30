@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Separator } from '@/components/ui/separator'
+import { createClient } from '@/lib/supabase/client'
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -73,24 +74,30 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     setGoogleLoading(true)
-    const redirectTo = new URL('/auth/callback', window.location.origin).toString()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    try {
+      const supabase = createClient()
+      const redirectTo = new URL('/auth/callback', window.location.origin).toString()
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      })
 
-    if (!supabaseUrl) {
-      toast.error('Supabase URL is missing.')
+      if (error) {
+        toast.error(error.message)
+        setGoogleLoading(false)
+        return
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url)
+      } else {
+        toast.error('Could not initiate Google sign-in. Please try again.')
+        setGoogleLoading(false)
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.')
       setGoogleLoading(false)
-      return
     }
-    const appOrigin = window.location.origin
-    if (supabaseUrl.startsWith(appOrigin)) {
-      toast.error('Auth config issue: NEXT_PUBLIC_SUPABASE_URL points to this app URL.')
-      setGoogleLoading(false)
-      return
-    }
-    const authorizeUrl = new URL('/auth/v1/authorize', supabaseUrl)
-    authorizeUrl.searchParams.set('provider', 'google')
-    authorizeUrl.searchParams.set('redirect_to', redirectTo)
-    window.location.assign(authorizeUrl.toString())
   }
 
   function switchMode() {
