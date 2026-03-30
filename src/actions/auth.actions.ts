@@ -2,7 +2,6 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getSiteOrigin } from '@/lib/site-url'
 import { ActionResult } from '@/types'
 
 export async function loginWithEmail(email: string, password: string): Promise<ActionResult<void>> {
@@ -11,11 +10,10 @@ export async function loginWithEmail(email: string, password: string): Promise<A
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    console.error('[loginWithEmail] Supabase error:', error.message)
+    console.error('[loginWithEmail]', error.message)
     return { success: false, error: error.message }
   }
 
-  console.log('[loginWithEmail] Success:', email)
   redirect('/dashboard')
 }
 
@@ -44,31 +42,13 @@ export async function signUpWithEmail(data: SignUpData): Promise<ActionResult<vo
   })
 
   if (error) {
-    console.error('[signUpWithEmail] Supabase error:', error.message)
+    console.error('[signUpWithEmail]', error.message)
     return { success: false, error: error.message }
   }
 
-  console.log('[signUpWithEmail] Success:', data.email)
   redirect('/dashboard')
 }
 
-export async function loginWithGoogle(): Promise<ActionResult<{ url: string }>> {
-  const supabase = await createClient()
-  const siteOrigin = await getSiteOrigin()
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${siteOrigin}/auth/callback`,
-    },
-  })
-
-  if (error) {
-    return { success: false, error: error.message }
-  }
-
-  return { success: true, data: { url: data.url } }
-}
 
 export async function updateProfile(displayName: string): Promise<ActionResult<void>> {
   const supabase = await createClient()

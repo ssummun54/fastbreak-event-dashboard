@@ -15,9 +15,10 @@ import { SportCount } from '@/types'
 
 interface EventFiltersProps {
   sportCounts: SportCount[]
+  showPast: boolean
 }
 
-export function EventFilters({ sportCounts }: EventFiltersProps) {
+export function EventFilters({ sportCounts, showPast }: EventFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -42,7 +43,7 @@ export function EventFilters({ sportCounts }: EventFiltersProps) {
   const hasFilters = query || sport
 
   return (
-    <div className="flex flex-col sm:flex-row gap-3">
+    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
       <Input
         placeholder="Search events..."
         value={query}
@@ -69,6 +70,13 @@ export function EventFilters({ sportCounts }: EventFiltersProps) {
           ))}
         </SelectContent>
       </Select>
+      <Button
+        variant={showPast ? 'secondary' : 'ghost'}
+        onClick={() => updateParams('past', showPast ? '' : 'true')}
+        className="sm:ml-auto"
+      >
+        {showPast ? 'Hide past events' : 'Show past events'}
+      </Button>
       {hasFilters && (
         <Button variant="ghost" onClick={() => router.push(pathname)}>
           Clear

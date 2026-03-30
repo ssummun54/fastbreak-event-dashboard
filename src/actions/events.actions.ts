@@ -10,13 +10,17 @@ import { normalizeEventInput } from '@/lib/text/normalize'
 import { toCanonicalSport } from '@/lib/text/sport'
 import { z } from 'zod'
 
-export async function getEvents(query?: string, sport?: string): Promise<Event[]> {
+export async function getEvents(query?: string, sport?: string, showPast?: boolean): Promise<Event[]> {
   const supabase = await createClient()
 
   let eventsQuery = supabase
     .from('events')
     .select('*, venues(*)')
     .order('starts_at', { ascending: false })
+
+  if (!showPast) {
+    eventsQuery = eventsQuery.gte('ends_at', new Date().toISOString())
+  }
 
   if (query) {
     eventsQuery = eventsQuery.ilike('name', `%${query}%`)
@@ -56,12 +60,16 @@ export async function getEvent(id: string): Promise<Event | null> {
   }
 }
 
-export async function getSportCounts(query?: string): Promise<SportCount[]> {
+export async function getSportCounts(query?: string, showPast?: boolean): Promise<SportCount[]> {
   const supabase = await createClient()
 
   let queryBuilder = supabase
     .from('events')
     .select('sport')
+
+  if (!showPast) {
+    queryBuilder = queryBuilder.gte('ends_at', new Date().toISOString())
+  }
 
   if (query) {
     queryBuilder = queryBuilder.ilike('name', `%${query}%`)
@@ -182,7 +190,8 @@ const _updateEvent = safeAction(updateEventSchema, async (input, userId) => {
   if (eventError) throw new Error(eventError.message)
 
   // Replace venues: delete old, insert new
-  await supabase.from('venues').delete().eq('event_id', input.id)
+  const { error: deleteError } = await supabase.from('venues').delete().eq('event_id', input.id)
+  if (deleteError) throw new Error(deleteError.message)
 
   if (venueRows.length > 0) {
     const { error: venuesError } = await supabase.from('venues').insert(

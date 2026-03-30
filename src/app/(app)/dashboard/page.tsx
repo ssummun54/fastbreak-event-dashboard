@@ -12,17 +12,18 @@ import { DeleteEventButton } from '@/components/events/delete-event-button'
 import { Event } from '@/types'
 
 interface DashboardPageProps {
-  searchParams: Promise<{ query?: string; sport?: string }>
+  searchParams: Promise<{ query?: string; sport?: string; past?: string }>
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   // In Next.js 15+, searchParams is a Promise — must be awaited
-  const { query, sport } = await searchParams
+  const { query, sport, past } = await searchParams
+  const showPast = past === 'true'
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const [events, sportCounts] = await Promise.all([
-    getEvents(query, sport),
-    getSportCounts(query),
+    getEvents(query, sport, showPast),
+    getSportCounts(query, showPast),
   ])
 
   return (
@@ -47,7 +48,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       {/* EventFilters uses useSearchParams() so it must be wrapped in Suspense */}
       <Suspense fallback={<FiltersSkeleton />}>
-        <EventFilters sportCounts={sportCounts} />
+        <EventFilters sportCounts={sportCounts} showPast={showPast} />
       </Suspense>
 
       {events.length === 0 ? (
